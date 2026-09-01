@@ -42,7 +42,7 @@ The machine running A3A needs:
 - Claude Code, authenticated through the Claude Pro subscription;
 - optional `VENICE_API_KEY` for automated independent review.
 
-Do **not** expose `ANTHROPIC_API_KEY` to the A3A Builder environment. The runner strips it from Claude subprocesses and `a3a doctor` flags its presence.
+Do **not** expose an Anthropic API key, auth token, gateway URL, or cloud-provider fallback to the A3A Builder environment. The runner strips those values from Claude subprocesses and `a3a doctor` flags them. The Venice reviewer key is also withheld from Builder subprocesses.
 
 After cloning an Atelier3A-enabled project:
 
@@ -86,7 +86,7 @@ For each task it:
 
 1. claims the issue with `studio:building`;
 2. creates a dedicated `studio/<issue>-<slug>` worktree;
-3. invokes `claude -p` with the issue and repository rules;
+3. invokes `claude -p` in restricted, non-interactive mode with the issue and repository rules;
 4. commits and pushes canonical implementation work;
 5. opens or updates a PR;
 6. applies `studio:reviewing`;
@@ -98,6 +98,12 @@ For each task it:
 12. moves verified work to `studio:human-review`.
 
 The runner never merges substantive work to `main`.
+
+### Builder execution boundary
+
+The Builder uses Claude Code `dontAsk` mode together with `--restricted`; it does not use `bypassPermissions` or grant additional directories. The exposed tool set is limited to worktree-confined read/edit/search tools plus Bash. Bash approvals are exact test/build/lint/typecheck commands with no wildcard arguments, while shell file-inspection, Git, network, and secondary-shell commands are explicitly denied. Unlisted tool calls fail closed during unattended runs.
+
+The orchestrator—not Claude—owns commits, pushes, PR creation, review routing, and the final transition to human review. Merge remains a separate human-authorized action.
 
 ## Principal escalation contract
 When an agent needs the Principal, GitHub should contain a compact decision packet:

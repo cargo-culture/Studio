@@ -27,8 +27,23 @@
       "noninteractive_command": "claude -p",
       "authentication": {
         "mode": "subscription",
-        "forbidden_environment_variables": ["ANTHROPIC_API_KEY"],
+        "forbidden_environment_variables": [
+          "ANTHROPIC_API_KEY",
+          "ANTHROPIC_AUTH_TOKEN",
+          "ANTHROPIC_BASE_URL",
+          "ANTHROPIC_BEDROCK_BASE_URL",
+          "ANTHROPIC_VERTEX_BASE_URL",
+          "CLAUDE_CODE_USE_BEDROCK",
+          "CLAUDE_CODE_USE_VERTEX",
+          "CLAUDE_CODE_USE_FOUNDRY",
+          "VENICE_API_KEY"
+        ],
         "api_credit_fallback": false
+      },
+      "permissions": {
+        "mode": "dontAsk",
+        "restricted_to_worktree": true,
+        "tools": ["Read", "Glob", "Grep", "Edit", "Write", "Bash"]
       }
     },
     "reviewer": {
