@@ -23,11 +23,17 @@ def _make_worktree(root: Path, branch: str, base: str, issue_number: int) -> Pat
     return wt
 
 
+def _has_changes(worktree: Path) -> bool:
+    status = run(["git", "status", "--porcelain"], cwd=worktree).stdout
+    return bool(status.strip())
+
+
 def _commit_push(worktree: Path, branch: str, message: str):
     run(["git", "add", "-A"], cwd=worktree)
     changed = run(["git", "diff", "--cached", "--quiet"], cwd=worktree, check=False).returncode != 0
-    if changed:
-        run(["git", "commit", "-m", message], cwd=worktree)
+    if not changed:
+        raise StudioError("BUILDER_NO_CHANGES")
+    run(["git", "commit", "-m", message], cwd=worktree)
     run(["git", "push", "-u", "origin", branch], cwd=worktree)
 
 
@@ -53,6 +59,8 @@ def process_issue(root: Path, number: int) -> dict:
             github.set_state(root, number, "studio:principal-needed")
             github.add_comment(root, number, "PRINCIPAL_NEEDED\n\n" + summary)
             return {"status": "principal-needed", "summary": summary}
+        if not _has_changes(wt):
+            raise StudioError("BUILDER_NO_CHANGES")
         _commit_push(wt, branch, f"studio: implement #{number} {issue.title}")
         pr = _ensure_pr(wt, issue, cfg.canonical_branch, branch)
         github.set_state(root, number, "studio:reviewing")
@@ -73,6 +81,8 @@ def process_issue(root: Path, number: int) -> dict:
             rounds += 1
             github.set_state(root, number, "studio:correcting")
             correction = run_builder(wt, issue, correction_review=review_text)
+            if not _has_changes(wt):
+                raise StudioError("BUILDER_NO_CHANGES_DURING_CORRECTION")
             _commit_push(wt, branch, f"studio: address review #{number} round {rounds}")
             github.set_state(root, number, "studio:reviewing")
             packet = build_review_packet(wt, issue, cfg.canonical_branch, correction)
