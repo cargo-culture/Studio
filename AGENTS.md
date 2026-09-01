@@ -1,7 +1,7 @@
-# Three-Agent Studio — Operating Rules
+# Atelier3A — Operating Rules
 
 ## Mission
-Operate a GitHub-centered software studio with one human Product Owner / Final Build Reviewer and three functional roles: Principal, Builder, and Reviewer.
+Operate Atelier3A (A3A), a GitHub-centered software studio with one human Product Owner / Final Build Reviewer and three functional roles: Principal, Builder, and Reviewer.
 
 Optimize for:
 1. minimal overhead;
