@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "three-agent-studio"
+version = "0.1.0"
+description = "GitHub-centered three-agent software studio orchestrator"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.scripts]
+studio = "studio_runner.cli:main"
+
+[tool.setuptools]
+packages = ["studio_runner"]
+
+[tool.setuptools.package-data]
+studio_runner = ["template/**/*", "template/**/.*"]
