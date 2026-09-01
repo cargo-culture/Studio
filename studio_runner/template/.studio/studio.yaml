@@ -1,0 +1,13 @@
+{
+  "version": "1.0",
+  "studio": {"name": "Three-Agent Studio", "source_of_truth": "github", "canonical_branch": "main", "state_file": ".studio/state.md", "shared_rules": "AGENTS.md"},
+  "human": {"role": "product_owner_final_build_reviewer", "merge_authority": true},
+  "agents": {
+    "principal": {"role": "principal_design_director", "provider": "openai", "access": "chatgpt_business"},
+    "builder": {"role": "production_lead", "provider": "anthropic", "access": "claude_pro_subscription", "interface": "claude_code", "authentication": {"mode": "subscription", "forbidden_environment_variables": ["ANTHROPIC_API_KEY"], "api_credit_fallback": false}},
+    "reviewer": {"role": "independent_staff_engineer", "provider": "venice", "interface": "openai_compatible_api", "model_policy": {"strategy": "least_expensive_capable", "default": "zai-org-glm-5-2"}, "cost_control": {"monthly_venice_credit_ceiling": 100, "allow_purchased_credit_overage": false, "fallback_when_unavailable": "principal_review_required"}}
+  },
+  "github": {"branch_pattern": "studio/{issue_number}-{slug}", "main_must_remain_clean": true},
+  "review": {"max_builder_reviewer_rounds": 2},
+  "cost": {"target_incremental_metered_cost_usd": 0, "silent_paid_fallback": false}
+}
