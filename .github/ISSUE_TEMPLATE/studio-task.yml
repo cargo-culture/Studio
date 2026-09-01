@@ -1,6 +1,6 @@
-name: Studio Task
-description: Work packet for the Three-Agent Studio
-title: "[Studio] "
+name: Atelier3A Task
+description: Work packet for Atelier3A (A3A)
+title: "[A3A] "
 labels: ["studio:queued", "risk:normal"]
 body:
   - type: textarea
