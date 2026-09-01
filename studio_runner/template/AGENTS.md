@@ -1,6 +1,6 @@
-# Three-Agent Studio — Project Rules
+# Atelier3A — Project Rules
 
-This project is operated by the Three-Agent Studio. GitHub is the source of truth. The human Product Owner is the final build reviewer and sole authority for substantive promotion to `main`.
+This project is operated by Atelier3A (A3A). GitHub is the source of truth. The human Product Owner is the final build reviewer and sole authority for substantive promotion to `main`.
 
 ## Roles
 - Principal: ChatGPT Business — product intent, architecture, task decomposition, arbitration, final review packet.
