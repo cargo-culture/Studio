@@ -1,7 +1,7 @@
-# Studio Integration — Single Front Door
+# Atelier3A Integration — Single Front Door
 
 ## Goal
-The human talks only to the **ChatGPT Business Principal**. GitHub is the shared command bus and source of truth. A local Studio runner dispatches production work to Claude Code and independent review to a budget-gated Venice model.
+The human talks only to the **ChatGPT Business Principal**. GitHub is the shared command bus and source of truth. The local Atelier3A (A3A) runner dispatches production work to Claude Code and independent review to a budget-gated Venice model.
 
 ```text
 HUMAN
@@ -13,7 +13,7 @@ CHATGPT BUSINESS — Principal
 GITHUB — issues / PRs / decisions / state
   |
   v
-LOCAL STUDIO RUNNER
+LOCAL A3A RUNNER
   |                    |
   v                    v
 CLAUDE CODE / PRO      VENICE MODEL
@@ -34,7 +34,7 @@ The Principal does not need a direct machine-to-machine connection to Claude or 
 This keeps project state provider-neutral and prevents important knowledge from disappearing with an agent conversation.
 
 ## One-time local setup
-The machine running the Studio needs:
+The machine running A3A needs:
 
 - Git;
 - GitHub CLI (`gh`), authenticated to the project repositories;
@@ -42,18 +42,18 @@ The machine running the Studio needs:
 - Claude Code, authenticated through the Claude Pro subscription;
 - optional `VENICE_API_KEY` for automated independent review.
 
-Do **not** expose `ANTHROPIC_API_KEY` to the Studio Builder environment. The runner strips it from Claude subprocesses and `studio doctor` flags its presence.
+Do **not** expose `ANTHROPIC_API_KEY` to the A3A Builder environment. The runner strips it from Claude subprocesses and `a3a doctor` flags its presence.
 
-After cloning a Studio-enabled project:
+After cloning an Atelier3A-enabled project:
 
 ```bash
 gh auth login
 claude
-./studio setup
-./studio run
+./a3a setup
+./a3a run
 ```
 
-Run `claude` once to establish subscription authentication.
+Run `claude` once to establish subscription authentication. The legacy `./studio` command remains available for compatibility.
 
 ## Human command model
 The human communicates in outcomes:
@@ -154,18 +154,18 @@ No agent may silently cross from subscription-included capacity to purchased met
 
 ## Project deployment
 ### New project
-After this repository is marked as a GitHub template, choose **Use this template** and create the new project repository. Clone it, authenticate locally once, then run `./studio setup` and `./studio run`.
+Choose **Use this template** from `cargo-culture/Atelier3A`, create the project repository, clone it, authenticate locally once, then run `./a3a setup` and `./a3a run`.
 
 ### Existing project
-Clone `cargo-culture/Studio` locally and run from the existing project:
+Clone `cargo-culture/Atelier3A` locally and run from the existing project:
 
 ```bash
-/path/to/Studio/studio init .
+/path/to/Atelier3A/a3a init .
 git add AGENTS.md .studio .github .gitignore README-STUDIO.md
-git commit -m "chore: install Three-Agent Studio"
+git commit -m "chore: install Atelier3A"
 git push
-/path/to/Studio/studio setup
-/path/to/Studio/studio run
+/path/to/Atelier3A/a3a setup
+/path/to/Atelier3A/a3a run
 ```
 
 The installer does not overwrite existing project files unless `--force` is explicitly supplied.
