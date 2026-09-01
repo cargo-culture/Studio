@@ -52,7 +52,7 @@ def add_comment(root: Path, number: int, text: str):
 
 def ensure_labels(root: Path):
     for label in STATE_LABELS + RISK_LABELS:
-        run(["gh", "label", "create", label, "--force", "--description", "Three-Agent Studio workflow label"], cwd=root)
+        run(["gh", "label", "create", label, "--force", "--description", "Atelier3A (A3A) workflow label"], cwd=root)
 
 
 def slugify(title: str) -> str:
