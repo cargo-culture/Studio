@@ -35,7 +35,7 @@ def _ensure_pr(worktree: Path, issue, base: str, branch: str) -> str:
     p = run(["gh", "pr", "list", "--head", branch, "--json", "url", "-q", ".[0].url"], cwd=worktree)
     if p.stdout.strip():
         return p.stdout.strip()
-    body = f"Implements #{issue.number}.\n\nManaged by Three-Agent Studio. Human approval required before merge."
+    body = f"Implements #{issue.number}.\n\nManaged by Atelier3A (A3A). Human approval required before merge."
     p = run(["gh", "pr", "create", "--base", base, "--head", branch, "--title", issue.title, "--body", body], cwd=worktree)
     return p.stdout.strip()
 
@@ -46,7 +46,6 @@ def process_issue(root: Path, number: int) -> dict:
     branch = cfg.branch_pattern.format(issue_number=issue.number, slug=github.slugify(issue.title))
     github.set_state(root, number, "studio:building")
     write_state(root, objective=issue.title, active=f"#{number}", builder=f"Claude — {branch}", review="Pending", blockers="None", next_="Builder implementation")
-
     wt = _make_worktree(root, branch, cfg.canonical_branch, issue.number)
     try:
         summary = run_builder(wt, issue)
@@ -57,7 +56,6 @@ def process_issue(root: Path, number: int) -> dict:
         _commit_push(wt, branch, f"studio: implement #{number} {issue.title}")
         pr = _ensure_pr(wt, issue, cfg.canonical_branch, branch)
         github.set_state(root, number, "studio:reviewing")
-
         review_text = None
         if cfg.reviewer_enabled:
             try:
@@ -70,7 +68,6 @@ def process_issue(root: Path, number: int) -> dict:
                     github.add_comment(root, number, f"PRINCIPAL_NEEDED\n\nIndependent automated review unavailable: {e}")
                     return {"status": "principal-needed", "pr": pr, "reason": str(e)}
                 raise
-
         rounds = 0
         while review_text and "VERDICT: CHANGES_REQUIRED" in review_text and rounds < cfg.max_review_rounds:
             rounds += 1
@@ -81,18 +78,16 @@ def process_issue(root: Path, number: int) -> dict:
             packet = build_review_packet(wt, issue, cfg.canonical_branch, correction)
             review_text = review(wt, cfg, packet, budget_root=root)
             github.add_comment(root, number, f"INDEPENDENT REVIEW ROUND {rounds+1}\n\n{review_text}")
-
         if review_text and "VERDICT: CHANGES_REQUIRED" in review_text:
             github.set_state(root, number, "studio:principal-needed")
             return {"status": "principal-needed", "pr": pr, "reason": "review rounds exhausted"}
-
         github.set_state(root, number, "studio:human-review")
         write_state(root, objective=issue.title, active=f"#{number}", builder=f"Complete — {branch}", review="Independent review complete", blockers="None", next_="Human final build review")
         github.add_comment(root, number, f"READY FOR HUMAN REVIEW\n\nBuilder summary:\n{summary}\n\nPR: {pr}\n\nReviewer:\n{review_text or 'Principal review required'}")
         return {"status": "human-review", "pr": pr, "summary": summary, "review": review_text}
     except StudioError as e:
         github.set_state(root, number, "studio:blocked")
-        github.add_comment(root, number, f"STUDIO BLOCKED\n\n{e}")
+        github.add_comment(root, number, f"A3A BLOCKED\n\n{e}")
         write_state(root, objective=issue.title, active=f"#{number}", builder="Blocked", review="Not complete", blockers=str(e), next_="Resolve blocker")
         raise
     finally:
