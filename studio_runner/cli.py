@@ -1,6 +1,7 @@
 from __future__ import annotations
 import argparse, json, sys, time
 from pathlib import Path
+from .config import BUILDER_API_FALLBACK_ENVIRONMENT_VARIABLES
 from .util import repo_root, StudioError, run
 from .init_project import init_project
 from .orchestrator import process_issue
@@ -32,7 +33,10 @@ def doctor():
             checks[name] = x.returncode == 0
         except FileNotFoundError:
             checks[name] = False
-    checks["anthropic_api_key_absent"] = not bool(__import__("os").environ.get("ANTHROPIC_API_KEY"))
+    environment = __import__("os").environ
+    checks["builder_api_fallback_absent"] = not any(
+        environment.get(name) for name in BUILDER_API_FALLBACK_ENVIRONMENT_VARIABLES
+    )
     print(json.dumps(checks, indent=2))
     return 0 if all(checks.values()) else 1
 

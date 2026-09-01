@@ -4,7 +4,32 @@
   "human": {"role": "product_owner_final_build_reviewer", "merge_authority": true},
   "agents": {
     "principal": {"role": "principal_design_director", "provider": "openai", "access": "chatgpt_business"},
-    "builder": {"role": "production_lead", "provider": "anthropic", "access": "claude_pro_subscription", "interface": "claude_code", "authentication": {"mode": "subscription", "forbidden_environment_variables": ["ANTHROPIC_API_KEY"], "api_credit_fallback": false}},
+    "builder": {
+      "role": "production_lead",
+      "provider": "anthropic",
+      "access": "claude_pro_subscription",
+      "interface": "claude_code",
+      "authentication": {
+        "mode": "subscription",
+        "forbidden_environment_variables": [
+          "ANTHROPIC_API_KEY",
+          "ANTHROPIC_AUTH_TOKEN",
+          "ANTHROPIC_BASE_URL",
+          "ANTHROPIC_BEDROCK_BASE_URL",
+          "ANTHROPIC_VERTEX_BASE_URL",
+          "CLAUDE_CODE_USE_BEDROCK",
+          "CLAUDE_CODE_USE_VERTEX",
+          "CLAUDE_CODE_USE_FOUNDRY",
+          "VENICE_API_KEY"
+        ],
+        "api_credit_fallback": false
+      },
+      "permissions": {
+        "mode": "dontAsk",
+        "restricted_to_worktree": true,
+        "tools": ["Read", "Glob", "Grep", "Edit", "Write", "Bash"]
+      }
+    },
     "reviewer": {"role": "independent_staff_engineer", "provider": "venice", "interface": "openai_compatible_api", "model_policy": {"strategy": "least_expensive_capable", "default": "zai-org-glm-5-2"}, "cost_control": {"monthly_venice_credit_ceiling": 100, "allow_purchased_credit_overage": false, "fallback_when_unavailable": "principal_review_required"}}
   },
   "github": {"branch_pattern": "studio/{issue_number}-{slug}", "main_must_remain_clean": true},

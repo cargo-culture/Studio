@@ -54,7 +54,7 @@ def process_issue(root: Path, number: int) -> dict:
     write_state(root, objective=issue.title, active=f"#{number}", builder=f"Claude — {branch}", review="Pending", blockers="None", next_="Builder implementation")
     wt = _make_worktree(root, branch, cfg.canonical_branch, issue.number)
     try:
-        summary = run_builder(wt, issue)
+        summary = run_builder(wt, issue, cfg.builder_policy)
         if "PRINCIPAL_NEEDED" in summary:
             github.set_state(root, number, "studio:principal-needed")
             github.add_comment(root, number, "PRINCIPAL_NEEDED\n\n" + summary)
@@ -80,7 +80,7 @@ def process_issue(root: Path, number: int) -> dict:
         while review_text and "VERDICT: CHANGES_REQUIRED" in review_text and rounds < cfg.max_review_rounds:
             rounds += 1
             github.set_state(root, number, "studio:correcting")
-            correction = run_builder(wt, issue, correction_review=review_text)
+            correction = run_builder(wt, issue, cfg.builder_policy, correction_review=review_text)
             if not _has_changes(wt):
                 raise StudioError("BUILDER_NO_CHANGES_DURING_CORRECTION")
             _commit_push(wt, branch, f"studio: address review #{number} round {rounds}")
