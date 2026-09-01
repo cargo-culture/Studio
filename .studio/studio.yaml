@@ -1,7 +1,8 @@
 {
   "version": "1.0",
   "studio": {
-    "name": "Three-Agent Studio",
+    "name": "Atelier3A",
+    "abbreviation": "A3A",
     "source_of_truth": "github",
     "canonical_branch": "main",
     "state_file": ".studio/state.md",
