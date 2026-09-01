@@ -1,0 +1,81 @@
+{
+  "version": "1.0",
+  "studio": {
+    "name": "Three-Agent Studio",
+    "source_of_truth": "github",
+    "canonical_branch": "main",
+    "state_file": ".studio/state.md",
+    "shared_rules": "AGENTS.md"
+  },
+  "human": {
+    "role": "product_owner_final_build_reviewer",
+    "merge_authority": true
+  },
+  "agents": {
+    "principal": {
+      "role": "principal_design_director",
+      "provider": "openai",
+      "access": "chatgpt_business",
+      "interface": "chatgpt"
+    },
+    "builder": {
+      "role": "production_lead",
+      "provider": "anthropic",
+      "access": "claude_pro_subscription",
+      "interface": "claude_code",
+      "noninteractive_command": "claude -p",
+      "authentication": {
+        "mode": "subscription",
+        "forbidden_environment_variables": ["ANTHROPIC_API_KEY"],
+        "api_credit_fallback": false
+      }
+    },
+    "reviewer": {
+      "role": "independent_staff_engineer",
+      "provider": "venice",
+      "access": "venice_pro",
+      "interface": "openai_compatible_api",
+      "base_url": "https://api.venice.ai/api/v1",
+      "model_policy": {
+        "strategy": "least_expensive_capable",
+        "default": "zai-org-glm-5-2",
+        "allow_frontier_escalation": false
+      },
+      "cost_control": {
+        "monthly_venice_credit_ceiling": 100,
+        "allow_purchased_credit_overage": false,
+        "stop_before_estimated_credit_ceiling": true,
+        "fallback_when_unavailable": "principal_review_required"
+      }
+    }
+  },
+  "github": {
+    "branch_pattern": "studio/{issue_number}-{slug}",
+    "lab_branch_pattern": "studio-lab/{issue_number}-{slug}",
+    "one_canonical_builder_per_issue": true,
+    "main_must_remain_clean": true
+  },
+  "review": {
+    "severities": ["BLOCKER", "MAJOR", "MINOR", "OPTIONAL"],
+    "max_builder_reviewer_rounds": 2,
+    "after_max_rounds": "principal_arbitration"
+  },
+  "context": {
+    "repository_memory": "github",
+    "conversation_memory_is_authoritative": false,
+    "default_scope": "task_relevant_only",
+    "full_repository_ingest": "only_when_justified"
+  },
+  "cost": {
+    "target_incremental_metered_cost_usd": 0,
+    "silent_paid_fallback": false,
+    "prefer_subscription_capacity": true,
+    "when_quota_exhausted": ["reroute", "defer", "mark_principal_needed"]
+  },
+  "human_review": {
+    "low_risk": "batch",
+    "normal": "once_after_verified",
+    "high_risk": ["design_checkpoint", "final_build_review"],
+    "release_candidate": "always"
+  }
+}
