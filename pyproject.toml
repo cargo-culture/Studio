@@ -3,13 +3,14 @@ requires = ["setuptools"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "three-agent-studio"
+name = "atelier3a"
 version = "0.1.0"
-description = "GitHub-centered three-agent software studio orchestrator"
+description = "Atelier3A (A3A), a GitHub-centered three-agent software studio orchestrator"
 requires-python = ">=3.11"
 dependencies = []
 
 [project.scripts]
+a3a = "studio_runner.cli:main"
 studio = "studio_runner.cli:main"
 
 [tool.setuptools]
