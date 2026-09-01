@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "studio": {"name": "Three-Agent Studio", "source_of_truth": "github", "canonical_branch": "main", "state_file": ".studio/state.md", "shared_rules": "AGENTS.md"},
+  "studio": {"name": "Atelier3A", "abbreviation": "A3A", "source_of_truth": "github", "canonical_branch": "main", "state_file": ".studio/state.md", "shared_rules": "AGENTS.md"},
   "human": {"role": "product_owner_final_build_reviewer", "merge_authority": true},
   "agents": {
     "principal": {"role": "principal_design_director", "provider": "openai", "access": "chatgpt_business"},
