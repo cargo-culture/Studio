@@ -8,9 +8,9 @@ from .github import queued_issues, ensure_labels
 
 
 def parser():
-    p = argparse.ArgumentParser(prog="studio", description="Three-Agent Studio orchestrator")
+    p = argparse.ArgumentParser(prog="a3a", description="Atelier3A (A3A) orchestrator")
     sub = p.add_subparsers(dest="cmd", required=True)
-    q = sub.add_parser("init", help="install Studio template into a project repo")
+    q = sub.add_parser("init", help="install the A3A template into a project repo")
     q.add_argument("path", nargs="?", default=".")
     q.add_argument("--force", action="store_true")
     q = sub.add_parser("process", help="process one GitHub issue")
@@ -18,8 +18,8 @@ def parser():
     q = sub.add_parser("run", help="poll queued issues")
     q.add_argument("--once", action="store_true")
     q.add_argument("--interval", type=int, default=60)
-    sub.add_parser("labels", help="create/update Studio labels")
-    sub.add_parser("setup", help="one-step local Studio setup/check")
+    sub.add_parser("labels", help="create/update A3A workflow labels")
+    sub.add_parser("setup", help="one-step local A3A setup/check")
     sub.add_parser("doctor", help="check local prerequisites")
     return p
 
@@ -47,19 +47,19 @@ def main(argv=None):
             source = Path(__file__).resolve().parents[1]
             target = Path(args.path).resolve()
             init_project(source, target, args.force)
-            print(f"Studio installed in {target}")
+            print(f"Atelier3A installed in {target}")
             return 0
         if args.cmd == "labels":
             ensure_labels(root)
-            print("Studio labels ready")
+            print("A3A labels ready")
             return 0
         if args.cmd == "setup":
             code = doctor()
             if code != 0:
-                print("Fix the failed prerequisites above, then rerun ./studio setup", file=sys.stderr)
+                print("Fix the failed prerequisites above, then rerun ./a3a setup", file=sys.stderr)
                 return code
             ensure_labels(root)
-            print("Studio ready. Start with: ./studio run")
+            print("Atelier3A ready. Start with: ./a3a run")
             return 0
         if args.cmd == "process":
             print(json.dumps(process_issue(root, args.issue), indent=2))
@@ -77,7 +77,7 @@ def main(argv=None):
                     return 0
                 time.sleep(args.interval)
     except StudioError as e:
-        print(f"studio: {e}", file=sys.stderr)
+        print(f"a3a: {e}", file=sys.stderr)
         return 2
 
 if __name__ == "__main__":
