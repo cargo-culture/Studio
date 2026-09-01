@@ -1,0 +1,29 @@
+name: Studio Task
+description: Work packet for the Three-Agent Studio
+title: "[Studio] "
+labels: ["studio:queued", "risk:normal"]
+body:
+  - type: textarea
+    id: objective
+    attributes:
+      label: Objective
+      description: What should change in the product?
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: Context / product intent
+      description: Relevant behavior, references, or constraints.
+  - type: textarea
+    id: acceptance
+    attributes:
+      label: Acceptance criteria
+      description: What must be true for this task to be complete?
+    validations:
+      required: true
+  - type: textarea
+    id: exclusions
+    attributes:
+      label: Explicit exclusions
+      description: What should not be changed?
