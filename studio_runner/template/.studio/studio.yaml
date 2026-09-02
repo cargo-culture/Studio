@@ -26,8 +26,7 @@
       },
       "permissions": {
         "mode": "dontAsk",
-        "restricted_to_worktree": true,
-        "tools": ["Read", "Glob", "Grep", "Edit", "Write", "Bash"]
+        "restricted_to_worktree": true
       }
     },
     "reviewer": {"role": "independent_staff_engineer", "provider": "venice", "interface": "openai_compatible_api", "model_policy": {"strategy": "least_expensive_capable", "default": "zai-org-glm-5-2"}, "cost_control": {"monthly_venice_credit_ceiling": 100, "allow_purchased_credit_overage": false, "fallback_when_unavailable": "principal_review_required"}}

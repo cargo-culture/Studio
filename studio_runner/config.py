@@ -2,7 +2,36 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import json
+import os as _os
 from .util import StudioError
+
+
+# Claude Code exposes different native shell tools per host OS: Bash on
+# POSIX, PowerShell on Windows. The Builder policy is fixed per platform and
+# is never selectable through config, so an approved verification command is
+# always available for the host actually running the agent.
+SHELL_TOOL_POSIX = "Bash"
+SHELL_TOOL_WINDOWS = "PowerShell"
+
+
+def is_windows() -> bool:
+    return _os.name == "nt"
+
+
+def native_shell_tool() -> str:
+    return SHELL_TOOL_WINDOWS if is_windows() else SHELL_TOOL_POSIX
+
+
+def _for_shell(rules: tuple[str, ...], shell_tool: str) -> tuple[str, ...]:
+    translated = []
+    for rule in rules:
+        if rule == SHELL_TOOL_POSIX:
+            translated.append(shell_tool)
+        elif rule.startswith(SHELL_TOOL_POSIX + "("):
+            translated.append(shell_tool + rule[len(SHELL_TOOL_POSIX):])
+        else:
+            translated.append(rule)
+    return tuple(translated)
 
 
 BUILDER_TOOLS = ("Read", "Glob", "Grep", "Edit", "Write", "Bash")
@@ -118,6 +147,27 @@ BUILDER_DENIED_TOOLS = (
     "Bash(cmd *)",
 )
 
+# The POSIX alias translation above only renames the shell tool prefix
+# (Bash -> PowerShell); it does not rename the commands themselves, so it
+# cannot deny the native PowerShell cmdlets Claude Code may treat as
+# read-only. Add those explicitly, Windows-only, to preserve the same
+# repository-inspection boundary that the POSIX denials enforce on Bash.
+BUILDER_DENIED_TOOLS_WINDOWS_ONLY = (
+    "PowerShell(Get-Content *)",
+    "PowerShell(Get-ChildItem *)",
+    "PowerShell(Get-Item *)",
+    "PowerShell(Resolve-Path *)",
+    "PowerShell(Test-Path *)",
+    "PowerShell(Get-Location)",
+    "PowerShell(Get-Variable)",
+    "PowerShell(Get-Variable *)",
+    "PowerShell(Select-String *)",
+    "PowerShell(Invoke-WebRequest *)",
+    "PowerShell(Invoke-RestMethod *)",
+    "PowerShell(Invoke-Expression *)",
+    "PowerShell(Start-Process *)",
+)
+
 BUILDER_API_FALLBACK_ENVIRONMENT_VARIABLES = (
     "ANTHROPIC_API_KEY",
     "ANTHROPIC_AUTH_TOKEN",
@@ -147,6 +197,9 @@ class BuilderPolicy:
 
 def _unique(*groups: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(item for group in groups for item in group))
+
+
+BUILDER_PERMISSION_KEYS = frozenset({"mode", "restricted_to_worktree", "tools", "allow", "deny"})
 
 @dataclass
 class Config:
@@ -183,11 +236,22 @@ class Config:
         permissions = builder.get("permissions", {})
         authentication = builder.get("authentication", {})
 
+        unrecognized = set(permissions) - BUILDER_PERMISSION_KEYS
+        if unrecognized:
+            raise StudioError(f"unrecognized Builder permission key(s): {', '.join(sorted(unrecognized))}")
+
+        shell_tool = native_shell_tool()
+        native_tools = _for_shell(BUILDER_TOOLS, shell_tool)
+        native_allowed = _for_shell(BUILDER_ALLOWED_TOOLS, shell_tool)
+        native_denied = _for_shell(BUILDER_DENIED_TOOLS, shell_tool)
+        if shell_tool == SHELL_TOOL_WINDOWS:
+            native_denied = _unique(native_denied, BUILDER_DENIED_TOOLS_WINDOWS_ONLY)
+
         permission_mode = permissions.get("mode", "dontAsk")
         restricted = permissions.get("restricted_to_worktree", True)
-        tools = tuple(permissions.get("tools", BUILDER_TOOLS))
-        allowed = tuple(permissions.get("allow", BUILDER_ALLOWED_TOOLS))
-        denied = _unique(BUILDER_DENIED_TOOLS, tuple(permissions.get("deny", ())))
+        tools = tuple(permissions.get("tools", native_tools))
+        allowed = tuple(permissions.get("allow", native_allowed))
+        denied = _unique(native_denied, tuple(permissions.get("deny", ())))
         forbidden_env = _unique(
             BUILDER_FORBIDDEN_ENVIRONMENT_VARIABLES,
             tuple(authentication.get("forbidden_environment_variables", ())),
@@ -197,9 +261,9 @@ class Config:
             raise StudioError("Builder permissions must use dontAsk mode")
         if restricted is not True:
             raise StudioError("Builder permissions must remain restricted to the worktree")
-        if tuple(tools) != BUILDER_TOOLS:
-            raise StudioError("Builder tool access must use the fixed worktree-only tool set")
-        unknown = set(allowed) - set(BUILDER_ALLOWED_TOOLS)
+        if tuple(tools) != native_tools:
+            raise StudioError("Builder tool access must use the fixed worktree-only tool set for this platform")
+        unknown = set(allowed) - set(native_allowed)
         if unknown:
             raise StudioError(f"unsafe Builder allow rule(s): {', '.join(sorted(unknown))}")
         missing_file_tools = {"Read", "Glob", "Grep", "Edit", "Write"} - set(allowed)

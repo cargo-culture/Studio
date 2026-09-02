@@ -101,7 +101,7 @@ The runner never merges substantive work to `main`.
 
 ### Builder execution boundary
 
-The Builder uses Claude Code `dontAsk` mode together with `--restricted`; it does not use `bypassPermissions` or grant additional directories. The exposed tool set is limited to worktree-confined read/edit/search tools plus Bash. Bash approvals are exact test/build/lint/typecheck commands with no wildcard arguments, while shell file-inspection, Git, network, and secondary-shell commands are explicitly denied. Unlisted tool calls fail closed during unattended runs.
+The Builder uses Claude Code `dontAsk` mode together with `--restricted`; it does not use `bypassPermissions` or grant additional directories. The exposed tool set is limited to worktree-confined read/edit/search tools plus the shell tool Claude Code exposes natively on the host: `Bash` on non-Windows hosts, `PowerShell` on Windows. The runner selects that tool automatically from the host platform — it is not configurable — and translates the same exact, argument-free test/build/lint/typecheck approvals and the same explicit denials (file inspection, Git, network, secondary-shell) onto whichever tool is active, so approved verification commands remain available on every supported host. Unlisted tool calls fail closed during unattended runs.
 
 The orchestrator—not Claude—owns commits, pushes, PR creation, review routing, and the final transition to human review. Merge remains a separate human-authorized action.
 

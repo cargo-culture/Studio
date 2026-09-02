@@ -42,8 +42,7 @@
       },
       "permissions": {
         "mode": "dontAsk",
-        "restricted_to_worktree": true,
-        "tools": ["Read", "Glob", "Grep", "Edit", "Write", "Bash"]
+        "restricted_to_worktree": true
       }
     },
     "reviewer": {
