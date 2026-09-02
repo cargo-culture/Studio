@@ -35,6 +35,13 @@ def test_builder_policy_selects_bash_on_non_windows(tmp_path, monkeypatch):
     assert "PowerShell(Get-Content *)" not in policy.denied_tools
     assert "PowerShell(Get-ChildItem *)" not in policy.denied_tools
 
+    # Every argument-free (no wildcard) Windows-only denial, including the
+    # PowerShell alias/secondary-shell entries, must be entirely absent
+    # off Windows: none of it is native PowerShell tool syntax.
+    for rule in config_module.BUILDER_DENIED_TOOLS_WINDOWS_ONLY:
+        if "*" not in rule:
+            assert rule not in policy.denied_tools
+
 
 def test_builder_policy_selects_powershell_on_windows(tmp_path, monkeypatch):
     monkeypatch.setattr(config_module, "is_windows", lambda: True)
@@ -69,6 +76,15 @@ def test_builder_policy_selects_powershell_on_windows(tmp_path, monkeypatch):
     assert "PowerShell(powershell *)" in policy.denied_tools
     assert "PowerShell(pwsh *)" in policy.denied_tools
     assert "PowerShell(cmd *)" in policy.denied_tools
+
+    for alias in ("gc *", "type *", "gci *", "dir *", "gi *", "rvpa *", "sls *", "iwr *", "irm *", "iex *", "saps *"):
+        assert f"PowerShell({alias})" in policy.denied_tools
+    for bare in ("gl", "pwd", "gv"):
+        assert f"PowerShell({bare})" in policy.denied_tools
+    assert "PowerShell(gv *)" in policy.denied_tools
+    for shell in ("bash", "sh", "wsl"):
+        assert f"PowerShell({shell})" in policy.denied_tools
+        assert f"PowerShell({shell} *)" in policy.denied_tools
 
 
 @pytest.mark.parametrize("windows", [False, True])
@@ -115,7 +131,7 @@ def test_builder_policy_rejects_non_native_shell_tool_selection(tmp_path, monkey
     )
 
     monkeypatch.setattr(config_module, "is_windows", lambda: True)
-    with pytest.raises(StudioError):
+    with pytest.raises(StudioError, match="Builder tool access must use the fixed worktree-only tool set for this platform"):
         load_config(tmp_path).builder_policy
 
     monkeypatch.setattr(config_module, "is_windows", lambda: False)
@@ -127,6 +143,39 @@ def test_builder_policy_rejects_non_native_shell_tool_selection(tmp_path, monkey
         "Write",
         "Bash",
     )
+
+
+def test_builder_policy_deny_only_appends_on_non_windows(tmp_path, monkeypatch):
+    monkeypatch.setattr(config_module, "is_windows", lambda: False)
+    d = tmp_path / ".studio"
+    d.mkdir()
+    d.joinpath("studio.yaml").write_text(
+        json.dumps({"agents": {"builder": {"permissions": {"deny": ["Bash(rm -rf *)"]}}}})
+    )
+
+    policy = load_config(tmp_path).builder_policy
+
+    assert "Bash(rm -rf *)" in policy.denied_tools
+    for native_rule in config_module.BUILDER_DENIED_TOOLS:
+        assert native_rule in policy.denied_tools
+
+
+def test_builder_policy_deny_only_appends_on_windows(tmp_path, monkeypatch):
+    monkeypatch.setattr(config_module, "is_windows", lambda: True)
+    d = tmp_path / ".studio"
+    d.mkdir()
+    d.joinpath("studio.yaml").write_text(
+        json.dumps({"agents": {"builder": {"permissions": {"deny": ["PowerShell(Remove-Item *)"]}}}})
+    )
+
+    policy = load_config(tmp_path).builder_policy
+
+    assert "PowerShell(Remove-Item *)" in policy.denied_tools
+    for native_rule in config_module.BUILDER_DENIED_TOOLS:
+        translated = config_module._for_shell((native_rule,), "PowerShell")[0]
+        assert translated in policy.denied_tools
+    for native_rule in config_module.BUILDER_DENIED_TOOLS_WINDOWS_ONLY:
+        assert native_rule in policy.denied_tools
 
 
 def test_builder_policy_rejects_unrecognized_shell_override_key(tmp_path, monkeypatch):

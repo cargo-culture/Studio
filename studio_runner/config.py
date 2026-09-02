@@ -2,7 +2,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from pathlib import Path
 import json
-import os as _os
+import os
 from .util import StudioError
 
 
@@ -15,7 +15,7 @@ SHELL_TOOL_WINDOWS = "PowerShell"
 
 
 def is_windows() -> bool:
-    return _os.name == "nt"
+    return os.name == "nt"
 
 
 def native_shell_tool() -> str:
@@ -34,6 +34,13 @@ def _for_shell(rules: tuple[str, ...], shell_tool: str) -> tuple[str, ...]:
     return tuple(translated)
 
 
+# BUILDER_TOOLS, BUILDER_ALLOWED_TOOLS, and BUILDER_DENIED_TOOLS are POSIX
+# source-form rules: every shell rule is authored with the "Bash" tool
+# prefix and none of these three constants is runtime-ready or safe to pass
+# directly to Claude Code. `builder_policy` always routes them through
+# `_for_shell(rules, native_shell_tool())`, which rewrites "Bash" to the
+# host's native shell tool ("Bash" on POSIX, "PowerShell" on Windows),
+# before they become part of a `BuilderPolicy`.
 BUILDER_TOOLS = ("Read", "Glob", "Grep", "Edit", "Write", "Bash")
 
 # Keep shell approvals exact. Wildcards make it possible to append redirections,
@@ -152,20 +159,48 @@ BUILDER_DENIED_TOOLS = (
 # cannot deny the native PowerShell cmdlets Claude Code may treat as
 # read-only. Add those explicitly, Windows-only, to preserve the same
 # repository-inspection boundary that the POSIX denials enforce on Bash.
+#
+# PowerShell also ships built-in aliases for several of these cmdlets, and
+# separate alternate shell/process entry points (bash/sh/wsl) that reach the
+# same prohibited file, path, environment, network, expression, or
+# secondary-shell operations under a different name. Deny those aliases and
+# entry points too so the boundary cannot be bypassed just by spelling the
+# same operation differently. No allow rule is added for any of them.
 BUILDER_DENIED_TOOLS_WINDOWS_ONLY = (
     "PowerShell(Get-Content *)",
+    "PowerShell(gc *)",
+    "PowerShell(type *)",
     "PowerShell(Get-ChildItem *)",
+    "PowerShell(gci *)",
+    "PowerShell(dir *)",
     "PowerShell(Get-Item *)",
+    "PowerShell(gi *)",
     "PowerShell(Resolve-Path *)",
+    "PowerShell(rvpa *)",
     "PowerShell(Test-Path *)",
     "PowerShell(Get-Location)",
+    "PowerShell(gl)",
+    "PowerShell(pwd)",
     "PowerShell(Get-Variable)",
     "PowerShell(Get-Variable *)",
+    "PowerShell(gv)",
+    "PowerShell(gv *)",
     "PowerShell(Select-String *)",
+    "PowerShell(sls *)",
     "PowerShell(Invoke-WebRequest *)",
+    "PowerShell(iwr *)",
     "PowerShell(Invoke-RestMethod *)",
+    "PowerShell(irm *)",
     "PowerShell(Invoke-Expression *)",
+    "PowerShell(iex *)",
     "PowerShell(Start-Process *)",
+    "PowerShell(saps *)",
+    "PowerShell(bash)",
+    "PowerShell(bash *)",
+    "PowerShell(sh)",
+    "PowerShell(sh *)",
+    "PowerShell(wsl)",
+    "PowerShell(wsl *)",
 )
 
 BUILDER_API_FALLBACK_ENVIRONMENT_VARIABLES = (
@@ -199,6 +234,10 @@ def _unique(*groups: tuple[str, ...]) -> tuple[str, ...]:
     return tuple(dict.fromkeys(item for group in groups for item in group))
 
 
+# Fail-closed: only these keys are accepted under builder.permissions. Any
+# other key (typo, future/unsupported option, etc.) raises StudioError from
+# builder_policy instead of being silently ignored, so an unenforced
+# permission can never slip through unnoticed.
 BUILDER_PERMISSION_KEYS = frozenset({"mode", "restricted_to_worktree", "tools", "allow", "deny"})
 
 @dataclass
