@@ -202,6 +202,25 @@ def test_builder_policy_deny_only_appends_on_windows(tmp_path, monkeypatch):
         assert native_rule in policy.denied_tools
 
 
+def test_builder_policy_deny_translates_canonical_bash_form_on_windows(tmp_path, monkeypatch):
+    # Configured deny rules are authored in canonical Bash(...) source form
+    # on every host, including Windows, and must be translated through
+    # `_for_shell` to the native PowerShell(...) form before merging, the
+    # same way the built-in BUILDER_DENIED_TOOLS rules are.
+    monkeypatch.setattr(config_module, "is_windows", lambda: True)
+    d = tmp_path / ".studio"
+    d.mkdir()
+    d.joinpath("studio.yaml").write_text(
+        json.dumps({"agents": {"builder": {"permissions": {"deny": ["Bash(rm -rf *)"]}}}})
+    )
+
+    policy = load_config(tmp_path).builder_policy
+
+    assert "PowerShell(rm -rf *)" in policy.denied_tools
+    assert "Bash(rm -rf *)" not in policy.denied_tools
+    assert not any(rule.startswith("Bash") for rule in policy.denied_tools)
+
+
 def test_builder_policy_rejects_unrecognized_shell_override_key(tmp_path, monkeypatch):
     monkeypatch.setattr(config_module, "is_windows", lambda: True)
     d = tmp_path / ".studio"

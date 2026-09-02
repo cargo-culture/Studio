@@ -267,7 +267,10 @@ def _unique(*groups: tuple[str, ...]) -> tuple[str, ...]:
 # config can't be used to widen or narrow either one. "deny" is the only
 # configurable key, and it is additive-only (see `_unique(native_denied, ...)`
 # below): it can add further denials but can never remove or replace a
-# built-in one.
+# built-in one. Configured "deny" rules are authored in canonical Bash(...)
+# source form on every host, the same as BUILDER_DENIED_TOOLS, and are routed
+# through `_for_shell(..., shell_tool)` before merging so they land as
+# PowerShell(...) on Windows.
 BUILDER_PERMISSION_KEYS = frozenset({"mode", "restricted_to_worktree", "deny"})
 
 @dataclass
@@ -318,7 +321,8 @@ class Config:
 
         permission_mode = permissions.get("mode", "dontAsk")
         restricted = permissions.get("restricted_to_worktree", True)
-        denied = _unique(native_denied, tuple(permissions.get("deny", ())))
+        configured_deny = _for_shell(tuple(permissions.get("deny", ())), shell_tool)
+        denied = _unique(native_denied, configured_deny)
         forbidden_env = _unique(
             BUILDER_FORBIDDEN_ENVIRONMENT_VARIABLES,
             tuple(authentication.get("forbidden_environment_variables", ())),

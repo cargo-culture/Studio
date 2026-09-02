@@ -103,6 +103,8 @@ The runner never merges substantive work to `main`.
 
 The Builder uses Claude Code `dontAsk` mode together with `--restricted`; it does not use `bypassPermissions` or grant additional directories. The exposed tool set is limited to worktree-confined read/edit/search tools plus the shell tool Claude Code exposes natively on the host: `Bash` on non-Windows hosts, `PowerShell` on Windows. The runner selects that tool automatically from the host platform -- it is not configurable -- and translates the same exact, argument-free test/build/lint/typecheck approvals and the same explicit denials (file inspection, Git, network, secondary-shell) onto whichever tool is active, so approved verification commands remain available on every supported host. Unlisted tool calls fail closed during unattended runs.
 
+`builder.permissions.deny` in `.studio/studio.yaml` is the only configurable permission, and it is additive-only: it can add further denials on top of the built-in ones but can never remove or replace one. Configured deny rules are authored in canonical `Bash(...)` source form regardless of host -- for example `Bash(rm -rf *)` -- and the runner translates them onto the host's native shell tool the same way it translates the built-in denials, so that rule becomes `PowerShell(rm -rf *)` on a Windows Builder host.
+
 The orchestrator--not Claude--owns commits, pushes, PR creation, review routing, and the final transition to human review. Merge remains a separate human-authorized action.
 
 ## Principal escalation contract
