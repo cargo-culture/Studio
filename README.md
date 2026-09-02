@@ -2,9 +2,9 @@
 
 **Atelier3A (A3A)** is a GitHub-centered three-agent software studio that gives one human a single point of contact while routing work among:
 
-- **Principal:** ChatGPT Business — product intent, architecture, arbitration, final review packet.
-- **Builder:** Claude Code authenticated through Claude Pro — canonical implementation and test loop.
-- **Reviewer:** Venice.ai models — independent review with a hard local budget ceiling and no silent paid fallback.
+- **Principal:** ChatGPT Business -- product intent, architecture, arbitration, final review packet.
+- **Builder:** Claude Code authenticated through Claude Pro -- canonical implementation and test loop.
+- **Reviewer:** Venice.ai models -- independent review with a hard local budget ceiling and no silent paid fallback.
 
 GitHub is the source of truth and message bus. The default policy is **human approval before substantive merge to `main`**.
 
@@ -24,7 +24,7 @@ claude
 
 `claude` is run once to authenticate Claude Code with the Claude Pro subscription. Do **not** configure an Anthropic API key, auth token, gateway URL, or cloud-provider fallback in the A3A runner environment.
 
-Unattended Builder sessions run in Claude Code restricted mode with no additional directories, no browser or MCP access, and a fail-closed permission policy. Claude may edit and inspect files only in its assigned worktree. Shell execution is limited to exact, argument-free test/build/lint/typecheck entry points such as `python -m pytest`, `npm test`, `npm run build`, `cargo test`, and `dotnet test`; every other shell command is denied.
+Unattended Builder sessions run in Claude Code restricted mode with no additional directories, no browser or MCP access, and a fail-closed permission policy. Claude may edit and inspect files only in its assigned worktree. Shell execution uses whichever native shell tool Claude Code exposes on the host -- `Bash` on non-Windows, `PowerShell` on Windows, selected automatically and not configurable -- and is limited to exact, argument-free test/build/lint/typecheck entry points such as `python -m pytest`, `npm test`, `npm run build`, `cargo test`, and `dotnet test`; every other shell command is denied on either platform.
 
 If automated Venice review is desired, set `VENICE_API_KEY`. If it is absent or the configured monthly credit ceiling is reached, the task routes to `studio:principal-needed` instead of spending more money.
 
@@ -85,11 +85,11 @@ The local Venice budget tracker is a safety estimate, **not a server-side billin
 
 ## Important files
 
-- `AGENTS.md` — governing operating rules.
-- `.studio/studio.yaml` — machine-readable routing and cost policy.
-- `.studio/state.md` — concise current state.
-- `STUDIO-INTEGRATION.md` — detailed single-front-door architecture and setup.
-- `studio_runner/` — local orchestrator.
+- `AGENTS.md` -- governing operating rules.
+- `.studio/studio.yaml` -- machine-readable routing and cost policy.
+- `.studio/state.md` -- concise current state.
+- `STUDIO-INTEGRATION.md` -- detailed single-front-door architecture and setup.
+- `studio_runner/` -- local orchestrator.
 
 ## Template model
 

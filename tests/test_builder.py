@@ -1,10 +1,17 @@
 from types import SimpleNamespace
 
+import pytest
+
 from studio_runner import builder
+from studio_runner import config as config_module
 from studio_runner.config import Config
 
 
-def test_builder_uses_restricted_exact_allowlist(monkeypatch, tmp_path):
+@pytest.mark.parametrize(
+    ("windows", "shell_tool"),
+    [(False, "Bash"), (True, "PowerShell")],
+)
+def test_builder_uses_restricted_exact_allowlist(monkeypatch, tmp_path, windows, shell_tool):
     captured = {}
 
     def fake_run(cmd, **kwargs):
@@ -13,6 +20,7 @@ def test_builder_uses_restricted_exact_allowlist(monkeypatch, tmp_path):
         return SimpleNamespace(stdout="STATUS\nPASS", stderr="", returncode=0)
 
     monkeypatch.setattr(builder, "run", fake_run)
+    monkeypatch.setattr(config_module, "is_windows", lambda: windows)
     monkeypatch.setenv("ANTHROPIC_API_KEY", "paid-fallback")
     monkeypatch.setenv("ANTHROPIC_AUTH_TOKEN", "gateway-fallback")
     monkeypatch.setenv("VENICE_API_KEY", "reviewer-secret")
@@ -37,13 +45,18 @@ def test_builder_uses_restricted_exact_allowlist(monkeypatch, tmp_path):
     tools = cmd[cmd.index("--tools") + 1].split(",")
     allowed = cmd[cmd.index("--allowedTools") + 1].split(",")
     denied = cmd[cmd.index("--disallowedTools") + 1].split(",")
-    assert tools == ["Read", "Glob", "Grep", "Edit", "Write", "Bash"]
-    assert "Bash" not in allowed
+    assert tools == ["Read", "Glob", "Grep", "Edit", "Write", shell_tool]
+    assert shell_tool not in allowed
     assert all("*" not in rule for rule in allowed)
-    assert "Bash(python -m pytest)" in allowed
-    assert "Bash(npm run build)" in allowed
-    assert "Bash(cat *)" in denied
-    assert "Bash(git *)" in denied
+    assert f"{shell_tool}(python -m pytest)" in allowed
+    assert f"{shell_tool}(npm run build)" in allowed
+    assert f"{shell_tool}(cat *)" in denied
+    assert f"{shell_tool}(git *)" in denied
+
+    other_shell_tool = "PowerShell" if shell_tool == "Bash" else "Bash"
+    assert not any(rule.startswith(other_shell_tool) for rule in tools)
+    assert not any(rule.startswith(other_shell_tool) for rule in allowed)
+    assert not any(rule.startswith(other_shell_tool) for rule in denied)
 
     env = captured["env"]
     assert "ANTHROPIC_API_KEY" not in env
