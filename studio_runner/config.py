@@ -157,8 +157,10 @@ BUILDER_DENIED_TOOLS = (
 # The POSIX alias translation above only renames the shell tool prefix
 # (Bash -> PowerShell); it does not rename the commands themselves, so it
 # cannot deny the native PowerShell cmdlets Claude Code may treat as
-# read-only. Add those explicitly, Windows-only, to preserve the same
-# repository-inspection boundary that the POSIX denials enforce on Bash.
+# read-only, including file/path inspection (Get-ItemProperty, Get-Acl) and
+# host/process/network reconnaissance (Get-Process, Get-Service,
+# Get-NetTCPConnection). Add those explicitly, Windows-only, to preserve the
+# same repository-inspection boundary that the POSIX denials enforce on Bash.
 #
 # PowerShell also ships built-in aliases for several of these cmdlets, and
 # separate alternate shell/process entry points (bash/sh/wsl) that reach the
@@ -195,12 +197,32 @@ BUILDER_DENIED_TOOLS_WINDOWS_ONLY = (
     "PowerShell(iex *)",
     "PowerShell(Start-Process *)",
     "PowerShell(saps *)",
+    "PowerShell(Get-ItemProperty *)",
+    "PowerShell(gp *)",
+    "PowerShell(Get-Acl *)",
+    "PowerShell(Get-Process)",
+    "PowerShell(Get-Process *)",
+    "PowerShell(ps)",
+    "PowerShell(ps *)",
+    "PowerShell(Get-Service)",
+    "PowerShell(Get-Service *)",
+    "PowerShell(gsv)",
+    "PowerShell(gsv *)",
+    "PowerShell(Get-NetTCPConnection)",
+    "PowerShell(Get-NetTCPConnection *)",
     "PowerShell(bash)",
     "PowerShell(bash *)",
     "PowerShell(sh)",
     "PowerShell(sh *)",
     "PowerShell(wsl)",
     "PowerShell(wsl *)",
+    # `Bash(powershell *)`, `Bash(pwsh *)`, and `Bash(cmd *)` above translate
+    # to the wildcard forms of these on Windows, but a bare invocation with
+    # no arguments still opens an interactive/secondary shell and isn't
+    # matched by the `*` (one-or-more-argument) rule, so deny it explicitly.
+    "PowerShell(powershell)",
+    "PowerShell(pwsh)",
+    "PowerShell(cmd)",
 )
 
 BUILDER_API_FALLBACK_ENVIRONMENT_VARIABLES = (
@@ -238,7 +260,15 @@ def _unique(*groups: tuple[str, ...]) -> tuple[str, ...]:
 # other key (typo, future/unsupported option, etc.) raises StudioError from
 # builder_policy instead of being silently ignored, so an unenforced
 # permission can never slip through unnoticed.
-BUILDER_PERMISSION_KEYS = frozenset({"mode", "restricted_to_worktree", "tools", "allow", "deny"})
+#
+# "tools" and "allow" are deliberately absent: the exposed tool set and the
+# exact verification allowlist are fixed per platform and are never
+# configurable, even to a value that happens to match the native default, so
+# config can't be used to widen or narrow either one. "deny" is the only
+# configurable key, and it is additive-only (see `_unique(native_denied, ...)`
+# below): it can add further denials but can never remove or replace a
+# built-in one.
+BUILDER_PERMISSION_KEYS = frozenset({"mode", "restricted_to_worktree", "deny"})
 
 @dataclass
 class Config:
@@ -288,8 +318,6 @@ class Config:
 
         permission_mode = permissions.get("mode", "dontAsk")
         restricted = permissions.get("restricted_to_worktree", True)
-        tools = tuple(permissions.get("tools", native_tools))
-        allowed = tuple(permissions.get("allow", native_allowed))
         denied = _unique(native_denied, tuple(permissions.get("deny", ())))
         forbidden_env = _unique(
             BUILDER_FORBIDDEN_ENVIRONMENT_VARIABLES,
@@ -300,20 +328,12 @@ class Config:
             raise StudioError("Builder permissions must use dontAsk mode")
         if restricted is not True:
             raise StudioError("Builder permissions must remain restricted to the worktree")
-        if tuple(tools) != native_tools:
-            raise StudioError("Builder tool access must use the fixed worktree-only tool set for this platform")
-        unknown = set(allowed) - set(native_allowed)
-        if unknown:
-            raise StudioError(f"unsafe Builder allow rule(s): {', '.join(sorted(unknown))}")
-        missing_file_tools = {"Read", "Glob", "Grep", "Edit", "Write"} - set(allowed)
-        if missing_file_tools:
-            raise StudioError(f"Builder file tool(s) missing: {', '.join(sorted(missing_file_tools))}")
 
         return BuilderPolicy(
             permission_mode=permission_mode,
             restricted_to_worktree=restricted,
-            tools=tools,
-            allowed_tools=allowed,
+            tools=native_tools,
+            allowed_tools=native_allowed,
             denied_tools=denied,
             forbidden_environment_variables=forbidden_env,
         )

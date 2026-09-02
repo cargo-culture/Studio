@@ -68,18 +68,31 @@ def test_builder_policy_selects_powershell_on_windows(tmp_path, monkeypatch):
         "Invoke-RestMethod",
         "Invoke-Expression",
         "Start-Process",
+        "Get-ItemProperty",
+        "Get-Acl",
+        "Get-Process",
+        "Get-Service",
+        "Get-NetTCPConnection",
     ):
         assert f"PowerShell({cmdlet} *)" in policy.denied_tools
     assert "PowerShell(Get-Location)" in policy.denied_tools
     assert "PowerShell(Get-Variable)" in policy.denied_tools
     assert "PowerShell(Get-Variable *)" in policy.denied_tools
+    assert "PowerShell(Get-Process)" in policy.denied_tools
+    assert "PowerShell(Get-Service)" in policy.denied_tools
+    assert "PowerShell(Get-NetTCPConnection)" in policy.denied_tools
     assert "PowerShell(powershell *)" in policy.denied_tools
     assert "PowerShell(pwsh *)" in policy.denied_tools
     assert "PowerShell(cmd *)" in policy.denied_tools
+    # Bare (argument-free) invocations of the native shell tools themselves,
+    # which are not covered by the `*` (one-or-more-argument) wildcard rules.
+    assert "PowerShell(powershell)" in policy.denied_tools
+    assert "PowerShell(pwsh)" in policy.denied_tools
+    assert "PowerShell(cmd)" in policy.denied_tools
 
-    for alias in ("gc *", "type *", "gci *", "dir *", "gi *", "rvpa *", "sls *", "iwr *", "irm *", "iex *", "saps *"):
+    for alias in ("gc *", "type *", "gci *", "dir *", "gi *", "rvpa *", "sls *", "iwr *", "irm *", "iex *", "saps *", "gp *", "ps *", "gsv *"):
         assert f"PowerShell({alias})" in policy.denied_tools
-    for bare in ("gl", "pwd", "gv"):
+    for bare in ("gl", "pwd", "gv", "ps", "gsv"):
         assert f"PowerShell({bare})" in policy.denied_tools
     assert "PowerShell(gv *)" in policy.denied_tools
     for shell in ("bash", "sh", "wsl"):
@@ -113,7 +126,12 @@ def test_builder_policy_rejects_broader_permissions(tmp_path, monkeypatch, permi
         load_config(tmp_path).builder_policy
 
 
-def test_builder_policy_rejects_non_native_shell_tool_selection(tmp_path, monkeypatch):
+@pytest.mark.parametrize("windows", [False, True])
+def test_builder_policy_rejects_tools_key_unconditionally(tmp_path, monkeypatch, windows):
+    # "tools" is not a configurable permission key at all, even when its
+    # value exactly matches the platform's fixed native tool set: only the
+    # key's presence is checked (via BUILDER_PERMISSION_KEYS), never its value.
+    monkeypatch.setattr(config_module, "is_windows", lambda: windows)
     d = tmp_path / ".studio"
     d.mkdir()
     d.joinpath("studio.yaml").write_text(
@@ -130,19 +148,25 @@ def test_builder_policy_rejects_non_native_shell_tool_selection(tmp_path, monkey
         )
     )
 
-    monkeypatch.setattr(config_module, "is_windows", lambda: True)
-    with pytest.raises(StudioError, match="Builder tool access must use the fixed worktree-only tool set for this platform"):
+    with pytest.raises(StudioError, match="unrecognized Builder permission key"):
         load_config(tmp_path).builder_policy
 
-    monkeypatch.setattr(config_module, "is_windows", lambda: False)
-    assert load_config(tmp_path).builder_policy.tools == (
-        "Read",
-        "Glob",
-        "Grep",
-        "Edit",
-        "Write",
-        "Bash",
+
+@pytest.mark.parametrize("windows", [False, True])
+def test_builder_policy_rejects_allow_key_unconditionally(tmp_path, monkeypatch, windows):
+    # "allow" is not configurable either, even with a value identical to the
+    # platform's native allowlist: presence of the key alone is rejected.
+    monkeypatch.setattr(config_module, "is_windows", lambda: windows)
+    shell_tool = "PowerShell" if windows else "Bash"
+    native_allowed = config_module._for_shell(config_module.BUILDER_ALLOWED_TOOLS, shell_tool)
+    d = tmp_path / ".studio"
+    d.mkdir()
+    d.joinpath("studio.yaml").write_text(
+        json.dumps({"agents": {"builder": {"permissions": {"allow": list(native_allowed)}}}})
     )
+
+    with pytest.raises(StudioError, match="unrecognized Builder permission key"):
+        load_config(tmp_path).builder_policy
 
 
 def test_builder_policy_deny_only_appends_on_non_windows(tmp_path, monkeypatch):
@@ -188,3 +212,34 @@ def test_builder_policy_rejects_unrecognized_shell_override_key(tmp_path, monkey
 
     with pytest.raises(StudioError):
         load_config(tmp_path).builder_policy
+
+
+def test_for_shell_does_not_translate_unrelated_tool_with_bash_prefix():
+    # `_for_shell` must only rewrite the exact "Bash" tool name and rules
+    # that start with the literal "Bash(" prefix. A distinct tool name that
+    # merely starts with the substring "Bash" (e.g. a hypothetical
+    # "BashHelper" tool) must pass through untouched, not be misdetected as
+    # a Bash shell rule and rewritten to "PowerShellHelper(x)".
+    rules = ("BashHelper(x)", "BashHelper", "Bash(python -m pytest)", "Bash")
+    translated = config_module._for_shell(rules, "PowerShell")
+
+    assert translated == (
+        "BashHelper(x)",
+        "BashHelper",
+        "PowerShell(python -m pytest)",
+        "PowerShell",
+    )
+
+
+def test_windows_only_denials_do_not_duplicate_translated_posix_denials():
+    # BUILDER_DENIED_TOOLS_WINDOWS_ONLY exists to add PowerShell-native
+    # denials that the POSIX->PowerShell translation of BUILDER_DENIED_TOOLS
+    # cannot express. It must never repeat a rule the translation already
+    # produces, since `_unique` would silently make the duplicate a no-op
+    # and the constant would misrepresent the actual added coverage.
+    translated_posix = set(config_module._for_shell(config_module.BUILDER_DENIED_TOOLS, "PowerShell"))
+    windows_only = set(config_module.BUILDER_DENIED_TOOLS_WINDOWS_ONLY)
+
+    assert translated_posix & windows_only == set()
+    # The constant itself must also be duplicate-free.
+    assert len(config_module.BUILDER_DENIED_TOOLS_WINDOWS_ONLY) == len(windows_only)
